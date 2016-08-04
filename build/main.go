@@ -59,6 +59,7 @@ func main() {
 		log.Fatalf("failed to create store: %s", err.Error())
 		os.Exit(-1)
 	}
+	defer s.Close()
 
 	r := raft.NewRaft(raftDir, raftAddr)
 	if err := r.Init(joinAddr == "", s); err != nil {
