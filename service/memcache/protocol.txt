@@ -1,0 +1,19 @@
+1, set command
+request: set key 0 30 5value
+request: set key 0 30 8value 
+
+2, get command
+request: get key
+
+3, replace command
+request: replace key 0 30 5value
+
+4, increment command
+request: incr a 2
+
+5, delete command
+request: delete key
+
+6, version command
+request: version
+

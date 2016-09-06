@@ -14,7 +14,7 @@ func NewStoreMem() *StoreMem {
 	}
 }
 
-func (s *StoreMem) Set(key string, value []byte) error {
+func (s *StoreMem) Set(key string, value []byte, flag, expire int) error {
 	s.cache[key] = value
 	return nil
 }
@@ -30,6 +30,14 @@ func (s *StoreMem) Get(key string) ([]byte, error) {
 func (s *StoreMem) Del(key string) error {
 	delete(s.cache, key)
 	return nil
+}
+
+func (s *StoreMem) Exist(key string) bool {
+	_, ok := s.cache[key]
+	if !ok {
+		return false
+	}
+	return true
 }
 
 func (s *StoreMem) Serialize() (map[string][]byte, error) {

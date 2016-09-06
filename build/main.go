@@ -6,10 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 
 	"github.com/Leon2012/xcache/cluster/raft"
 	"github.com/Leon2012/xcache/service"
@@ -54,29 +54,33 @@ func main() {
 	os.MkdirAll(raftDir, 0700)
 
 	//s := store.NewStoreMem()
-	s, err := store.NewStoreLeveldb(filepath.Join(raftDir, "my.db"))
-	if err != nil {
-		log.Fatalf("failed to create store: %s", err.Error())
-		os.Exit(-1)
-	}
-	defer s.Close()
+	//s, err := store.NewStoreLeveldb(filepath.Join(raftDir, "my.db"))
+	s := store.NewRbTreeStore()
+	// if err != nil {
+	// 	log.Fatalf("failed to create store: %s", err.Error())
+	// 	os.Exit(-1)
+	// }
+	//defer s.Close()
 
 	r := raft.NewRaft(raftDir, raftAddr)
 	if err := r.Init(joinAddr == "", s); err != nil {
 		log.Fatalf("failed to open store: %s", err.Error())
 	}
 
-	h := service.NewHttpd(httpAddr, r)
+	//h := service.NewHttpd(httpAddr, r)
+	pTCPAddr, _ := net.ResolveTCPAddr("tcp4", httpAddr)
+	l, _ := net.ListenTCP("tcp", pTCPAddr)
+	h := service.NewMemcached(l, r)
 	if err := h.Start(); err != nil {
 		log.Fatalf("failed to start HTTP service: %s", err.Error())
 	}
 
 	// If join was specified, make the join request.
-	if joinAddr != "" {
-		if err := join(joinAddr, raftAddr); err != nil {
-			log.Fatalf("failed to join node at %s: %s", joinAddr, err.Error())
-		}
-	}
+	// if joinAddr != "" {
+	// 	if err := join(joinAddr, raftAddr); err != nil {
+	// 		log.Fatalf("failed to join node at %s: %s", joinAddr, err.Error())
+	// 	}
+	// }
 
 	log.Println("hraft started successfully")
 

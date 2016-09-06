@@ -11,7 +11,7 @@ type StoreLeveldb struct {
 	path string
 }
 
-func NewStoreLeveldb(path string) (*StoreLeveldb, error) {
+func NewStoreLeveldb(path string) (Store, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func (s *StoreLeveldb) Close() {
 	s.db.Close()
 }
 
-func (s *StoreLeveldb) Set(key string, value []byte) error {
+func (s *StoreLeveldb) Set(key string, value []byte, flag, expire int) error {
 	err := s.db.Put([]byte(key), value, nil)
 	return err
 }
@@ -43,6 +43,15 @@ func (s *StoreLeveldb) Get(key string) ([]byte, error) {
 func (s *StoreLeveldb) Del(key string) error {
 	err := s.db.Delete([]byte(key), nil)
 	return err
+}
+
+func (s *StoreLeveldb) Exist(key string) bool {
+	b, err := s.db.Has([]byte(key), nil)
+	if err != nil {
+		return false
+	} else {
+		return b
+	}
 }
 
 func (s *StoreLeveldb) Serialize() (map[string][]byte, error) {

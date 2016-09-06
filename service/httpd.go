@@ -105,7 +105,7 @@ func (s *Httpd) handleKeyRequest(ctx *fasthttp.RequestCtx) {
 			return
 		}
 		for k, v := range m {
-			if err := s.cluster.Set(k, []byte(v)); err != nil {
+			if err := s.cluster.Set(k, []byte(v), 0, 60); err != nil {
 				ctx.SetStatusCode(http.StatusInternalServerError)
 				return
 			}

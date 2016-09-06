@@ -32,7 +32,7 @@ func (s *fsm) Apply(l *raft.Log) interface{} {
 	err = nil
 	switch c.Op {
 	case "set":
-		err = s.handleSet(c.Key, c.Value)
+		err = s.handleSet(c.Key, c.Value, c.Flag, c.Expire)
 		break
 	case "del":
 		err = s.handleDel(c.Key)
@@ -59,6 +59,8 @@ func (s *fsm) Snapshot() (raft.FSMSnapshot, error) {
 
 //重新读取
 func (s *fsm) Restore(old io.ReadCloser) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	o := make(map[string][]byte)
 	if err := json.NewDecoder(old).Decode(&o); err != nil {
 		return err
@@ -74,15 +76,19 @@ func (s *fsm) Restore(old io.ReadCloser) error {
 }
 
 func (s *fsm) Get(key string) ([]byte, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	//s.mu.Lock()
+	//defer s.mu.Unlock()
 	return s.store.Get(key)
 }
 
-func (s *fsm) handleSet(key string, value []byte) error {
+func (s *fsm) Has(key string) bool {
+	return s.store.Exist(key)
+}
+
+func (s *fsm) handleSet(key string, value []byte, flag, expire int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.store.Set(key, value)
+	return s.store.Set(key, value, flag, expire)
 }
 
 func (s *fsm) handleDel(key string) error {

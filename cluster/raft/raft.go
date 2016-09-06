@@ -17,9 +17,11 @@ import (
 )
 
 type command struct {
-	Op    string `json:"op,omitempty"`
-	Key   string `json:"key,omitempty"`
-	Value []byte `json:"value,omitempty"`
+	Op     string `json:"op,omitempty"`
+	Key    string `json:"key,omitempty"`
+	Value  []byte `json:"value,omitempty"`
+	Flag   int    `json:"flag,omitempty"`
+	Expire int    `json:"expire,omitempty"`
 }
 
 const (
@@ -132,28 +134,49 @@ func (r *RaftImpl) Join(addr string) error {
 	return nil
 }
 
+func (r *RaftImpl) Has(key string) bool {
+	return r.fsmImpl.Has(key)
+}
+
 func (r *RaftImpl) Get(key string) ([]byte, error) {
 	return r.fsmImpl.Get(key)
 }
 
-func (r *RaftImpl) Set(key string, value []byte) error {
-	if r.raft.State() != raft.Leader {
-		return fmt.Errorf("not leader")
+func (r *RaftImpl) Add(key string, value []byte, flag, expire int) error {
+	if r.Has(key) {
+		return fmt.Errorf("key exist")
 	}
-	c := &command{
-		Op:    "set",
-		Key:   key,
-		Value: value,
+	return r.Set(key, value, flag, expire)
+}
+
+func (r *RaftImpl) Replace(key string, value []byte, flag, expire int) error {
+	if !r.Has(key) {
+		return fmt.Errorf("key not exist")
 	}
-	b, err := json.Marshal(c)
-	if err != nil {
-		return err
-	}
-	f := r.raft.Apply(b, DEFAULT_RAFT_TIMEOUT)
-	if err, ok := f.(error); ok { //判断是否返回error
-		return err
-	}
-	return nil
+	return r.Set(key, value, flag, expire)
+}
+
+func (r *RaftImpl) Set(key string, value []byte, flag, expire int) error {
+	return r.fsmImpl.handleSet(key, value, flag, expire)
+	// if r.raft.State() != raft.Leader {
+	// 	return fmt.Errorf("not leader")
+	// }
+	// c := &command{
+	// 	Op:     "set",
+	// 	Key:    key,
+	// 	Value:  value,
+	// 	Flag:   flag,
+	// 	Expire: expire,
+	// }
+	// b, err := json.Marshal(c)
+	// if err != nil {
+	// 	return err
+	// }
+	// f := r.raft.Apply(b, DEFAULT_RAFT_TIMEOUT)
+	// if err, ok := f.(error); ok { //判断是否返回error
+	// 	return err
+	// }
+	// return nil
 }
 
 func (r *RaftImpl) Del(key string) error {
