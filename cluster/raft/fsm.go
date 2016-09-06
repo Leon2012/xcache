@@ -23,12 +23,16 @@ func NewFSM(s store.Store) *fsm {
 }
 
 func (s *fsm) Apply(l *raft.Log) interface{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	logger.Info("fsm Apply %s", string(l.Data))
 	var c command
 	var err error
 	if err = json.Unmarshal(l.Data, &c); err != nil {
 		logger.Error("failed to unmarshal command: %s", err.Error())
 		return err
 	}
+
 	err = nil
 	switch c.Op {
 	case "set":
@@ -76,23 +80,27 @@ func (s *fsm) Restore(old io.ReadCloser) error {
 }
 
 func (s *fsm) Get(key string) ([]byte, error) {
-	//s.mu.Lock()
-	//defer s.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.store.Get(key)
 }
 
 func (s *fsm) Has(key string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.store.Exist(key)
 }
 
 func (s *fsm) handleSet(key string, value []byte, flag, expire int) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	// s.mu.Lock()
+	// defer s.mu.Unlock()
+
 	return s.store.Set(key, value, flag, expire)
 }
 
 func (s *fsm) handleDel(key string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	// s.mu.Lock()
+	// defer s.mu.Unlock()
+
 	return s.store.Del(key)
 }

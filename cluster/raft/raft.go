@@ -2,12 +2,14 @@ package raft
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	logger "github.com/Leon2012/xcache/log"
@@ -125,6 +127,9 @@ func (r *RaftImpl) Init(enableSingle bool, s store.Store) error {
 }
 
 func (r *RaftImpl) Join(addr string) error {
+	// r.mu.Lock()
+	// defer r.mu.Unlock()
+
 	logger.Info("received join request for remote node as %s", addr)
 	f := r.raft.AddPeer(addr)
 	if f.Error() != nil {
@@ -135,14 +140,75 @@ func (r *RaftImpl) Join(addr string) error {
 }
 
 func (r *RaftImpl) Has(key string) bool {
+	// r.mu.Lock()
+	// defer r.mu.Unlock()
+
 	return r.fsmImpl.Has(key)
 }
 
+func (r *RaftImpl) Incr(key string, offset int64) (int64, error) {
+	if !r.Has(key) {
+		return 0, fmt.Errorf("key not exist")
+	}
+	data, err := r.Get(key)
+	if err != nil {
+		return 0, err
+	}
+	logger.Info("value1 : %s", string(data))
+	value, err := strconv.ParseInt(string(data), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	//value := bytesToInt64(data)
+	logger.Info("value : %d", value)
+	value = value + offset
+	str := strconv.Itoa(int(value))
+	logger.Info("value2 : %s", str)
+	//data = int64ToBytes(value)
+	//data = []byte(str)
+	err = r.Set(key, []byte(str), 0, 3600)
+	if err != nil {
+		return 0, err
+	}
+	return value, nil
+}
+
+func (r *RaftImpl) Decr(key string, offset int64) (int64, error) {
+	if !r.Has(key) {
+		return 0, fmt.Errorf("key not exist")
+	}
+	data, err := r.Get(key)
+	if err != nil {
+		return 0, err
+	}
+	logger.Info("value1 : %s", string(data))
+	value, err := strconv.ParseInt(string(data), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	//value := bytesToInt64(data)
+	logger.Info("value : %d", value)
+	value = value - offset
+	str := strconv.Itoa(int(value))
+	//data = int64ToBytes(value)
+	data = []byte(str)
+	err = r.Set(key, data, 0, 3600)
+	if err != nil {
+		return 0, err
+	}
+	return value, nil
+}
+
 func (r *RaftImpl) Get(key string) ([]byte, error) {
+	// r.mu.Lock()
+	// defer r.mu.Unlock()
 	return r.fsmImpl.Get(key)
 }
 
 func (r *RaftImpl) Add(key string, value []byte, flag, expire int) error {
+	// r.mu.Lock()
+	// defer r.mu.Unlock()
+
 	if r.Has(key) {
 		return fmt.Errorf("key exist")
 	}
@@ -150,6 +216,8 @@ func (r *RaftImpl) Add(key string, value []byte, flag, expire int) error {
 }
 
 func (r *RaftImpl) Replace(key string, value []byte, flag, expire int) error {
+	// r.mu.Lock()
+	// defer r.mu.Unlock()
 	if !r.Has(key) {
 		return fmt.Errorf("key not exist")
 	}
@@ -157,29 +225,35 @@ func (r *RaftImpl) Replace(key string, value []byte, flag, expire int) error {
 }
 
 func (r *RaftImpl) Set(key string, value []byte, flag, expire int) error {
-	return r.fsmImpl.handleSet(key, value, flag, expire)
-	// if r.raft.State() != raft.Leader {
-	// 	return fmt.Errorf("not leader")
-	// }
-	// c := &command{
-	// 	Op:     "set",
-	// 	Key:    key,
-	// 	Value:  value,
-	// 	Flag:   flag,
-	// 	Expire: expire,
-	// }
-	// b, err := json.Marshal(c)
-	// if err != nil {
-	// 	return err
-	// }
-	// f := r.raft.Apply(b, DEFAULT_RAFT_TIMEOUT)
-	// if err, ok := f.(error); ok { //判断是否返回error
-	// 	return err
-	// }
-	// return nil
+	// r.mu.Lock()
+	// defer r.mu.Unlock()
+
+	//return r.fsmImpl.handleSet(key, value, flag, expire)
+	if r.raft.State() != raft.Leader {
+		return fmt.Errorf("not leader")
+	}
+	c := &command{
+		Op:     "set",
+		Key:    key,
+		Value:  value,
+		Flag:   flag,
+		Expire: expire,
+	}
+	b, err := json.Marshal(c)
+	if err != nil {
+		return err
+	}
+	f := r.raft.Apply(b, DEFAULT_RAFT_TIMEOUT)
+	if err, ok := f.(error); ok { //判断是否返回error
+		return err
+	}
+	logger.Info("fsm set success!!!!")
+	return nil
 }
 
 func (r *RaftImpl) Del(key string) error {
+	// r.mu.Lock()
+	// defer r.mu.Unlock()
 	if r.raft.State() != raft.Leader {
 		return fmt.Errorf("not leader")
 	}
@@ -235,4 +309,20 @@ func readPeersJSON(path string) ([]string, error) {
 		return nil, err
 	}
 	return peers, nil
+}
+
+func int64ToBytes(i int64) []byte {
+	var buf = make([]byte, 8)
+	binary.PutUvarint(buf, uint64(i))
+	return buf
+}
+
+func bytesToInt64(b []byte) int64 {
+	buf := bytes.NewBuffer(b)
+	i, err := binary.ReadUvarint(buf)
+	if err != nil {
+		return 0
+	} else {
+		return int64(i)
+	}
 }

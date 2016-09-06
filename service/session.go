@@ -3,6 +3,7 @@ package service
 import (
 	"bufio"
 	"net"
+	"strconv"
 	"strings"
 
 	logger "github.com/Leon2012/xcache/log"
@@ -39,6 +40,14 @@ func (m *Session) handleMessage() {
 			}
 		}
 		switch req.Command {
+		case "join":
+			logger.Info("node %s will join", req.Key)
+			err := m.memcached.cluster.Join(req.Key)
+			if err != nil {
+				logger.Error("node join error : %s", err)
+			}
+			return
+			break
 		case "quit":
 			return
 			break
@@ -72,6 +81,9 @@ func (m *Session) handleMessage() {
 }
 
 func (m *Session) do(req *memcache.MCReq) (memcache.MCRes, error) {
+	// m.memcached.mu.Lock()
+	// defer m.memcached.mu.Lock()
+
 	var (
 		err error          = nil
 		res memcache.MCRes = memcache.MCRes{}
@@ -125,11 +137,23 @@ func (m *Session) do(req *memcache.MCReq) (memcache.MCRes, error) {
 		}
 		break
 	case "incr":
+		value, err := m.memcached.cluster.Incr(req.Key, req.Offset)
+		if err != nil {
+			res.Response = "NOT_FOUND"
+		} else {
+			res.Response = strconv.Itoa(int(value))
+		}
 		break
 	case "decr":
+		value, err := m.memcached.cluster.Decr(req.Key, req.Offset)
+		if err != nil {
+			res.Response = "NOT_FOUND"
+		} else {
+			res.Response = strconv.Itoa(int(value))
+		}
 		break
 	}
-	return res, err
+	return res, nil
 }
 
 func (m *Session) writeError(err memcache.MCError) {

@@ -1,13 +1,10 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
 
@@ -75,12 +72,12 @@ func main() {
 		log.Fatalf("failed to start HTTP service: %s", err.Error())
 	}
 
-	// If join was specified, make the join request.
-	// if joinAddr != "" {
-	// 	if err := join(joinAddr, raftAddr); err != nil {
-	// 		log.Fatalf("failed to join node at %s: %s", joinAddr, err.Error())
-	// 	}
-	// }
+	//If join was specified, make the join request.
+	if joinAddr != "" {
+		if err := join(joinAddr, raftAddr); err != nil {
+			log.Fatalf("failed to join node at %s: %s", joinAddr, err.Error())
+		}
+	}
 
 	log.Println("hraft started successfully")
 
@@ -91,15 +88,33 @@ func main() {
 }
 
 func join(joinAddr, raftAddr string) error {
-	b, err := json.Marshal(map[string]string{"addr": raftAddr})
+	command := "join " + raftAddr + "\r\n"
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", joinAddr)
 	if err != nil {
 		return err
 	}
-	resp, err := http.Post(fmt.Sprintf("http://%s/join", joinAddr), "application-type/json", bytes.NewReader(b))
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-
+	_, err = conn.Write([]byte(command))
+	if err != nil {
+		return err
+	}
+	conn.Close()
 	return nil
 }
+
+// func join(joinAddr, raftAddr string) error {
+// 	b, err := json.Marshal(map[string]string{"addr": raftAddr})
+// 	if err != nil {
+// 		return err
+// 	}
+// 	resp, err := http.Post(fmt.Sprintf("http://%s/join", joinAddr), "application-type/json", bytes.NewReader(b))
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer resp.Body.Close()
+
+// 	return nil
+// }

@@ -14,7 +14,7 @@ type MCReq struct {
 	ExpireAt int64
 	Data     []byte
 	Noreply  bool
-	Value    int64
+	Offset   int64
 }
 
 func Read(r *bufio.Reader) (req *MCReq, err error) {
@@ -114,6 +114,12 @@ func Read(r *bufio.Reader) (req *MCReq, err error) {
 		req.Command = command
 		return req, nil
 		break
+	case "join":
+		req := &MCReq{}
+		req.Command = command
+		req.Key = lineArray[1]
+		return req, nil
+		break
 	case "quit":
 		// quit
 		req := &MCReq{}
@@ -128,7 +134,7 @@ func Read(r *bufio.Reader) (req *MCReq, err error) {
 		req := &MCReq{}
 		req.Command = command
 		req.Key = lineArray[1]
-		req.Value, err = strconv.ParseInt(lineArray[2], 10, 64)
+		req.Offset, err = strconv.ParseInt(lineArray[2], 10, 64)
 		if err != nil {
 			return nil, err
 		}

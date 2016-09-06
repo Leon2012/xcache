@@ -2,6 +2,7 @@ package service
 
 import (
 	"net"
+	"sync"
 
 	"github.com/Leon2012/xcache/cluster"
 	logger "github.com/Leon2012/xcache/log"
@@ -21,6 +22,7 @@ type Memcached struct {
 	rcvBuf    int
 	sendBuf   int
 	sessions  []*Session
+	mu        sync.Mutex
 }
 
 func NewMemcached(lis *net.TCPListener, cluster cluster.Cluster) *Memcached {

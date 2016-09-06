@@ -112,7 +112,7 @@ func (l *Logger) Log(lvl string, message string) {
 	var formatString string = "%s [%s] %.4s %s"
 	info := &Infoer{
 		Id:      atomic.AddUint64(&logNo, 1),
-		Time:    time.Now().Format("2006-01-02:15:04:05"),
+		Time:    time.Now().Format("2006-01-02 15:04:05.000"),
 		Module:  l.Module,
 		Level:   lvl,
 		Message: message,
